@@ -1,0 +1,348 @@
+$--ds-properties-map: ();
+// $--ds-extendants-map: ();
+
+
+@function -ds-amp() {
+	@if not & {
+		@error "Behavior not allowed. You can't use properties in the global context. Just use normal variables for that.";
+	}
+	@else if length(&) != 1 {
+		@error "Behavior not allowed. You can't use properties in comma separated selectors";
+	}
+
+	@return sanify-selector(#{&});
+}
+
+@mixin -ds-properties-into-global-map($properties) {
+	$--ds-properties-map: map-merge($--ds-properties-map, (-ds-amp(): $properties)) !global;
+}
+
+// @mixin -ds-extendants-into-global-map($extendants) {
+// 	$--ds-extendants-map: map-merge($--ds-extendants-map, (-ds-amp(): $extendants)) !global;
+// }
+
+
+
+/// saves a name value pair to the current context.
+// consider restricting the places you can save things, such as not in psuedo-classes. encourage them to instead use attribute transformations
+@mixin ds-property($name, $value) {
+	// place the property in the global map
+
+	// see if this current context already exists
+	@if map-has-key($--ds-properties-map, -ds-amp()) {
+		// if it does
+		// grab it's property map
+		$properties: map-get($--ds-properties-map, -ds-amp());
+		// and merge this name value pair, overwriting anything currently at $name
+		$properties: map-merge($properties, ($name: $value));
+
+		// then merge into the global map, overwriting the current context with the new merged properties
+		@include -ds-properties-into-global-map($properties);
+	}
+	@else {
+		// if it doesn't
+		// create one from this name value pair
+		$properties: ($name: $value);
+		// place it on the context and merge with the global map
+		@include -ds-properties-into-global-map($properties);
+	}
+}
+
+@function -ds-prepend($list, $value) {
+	@return join($value, $list);
+}
+
+/// makes the current context selector identical in attributes to the passed selector
+/// overrides anything set up in previous layers of the context
+@mixin ds-extend($extendant-selector, $optional: false) {
+	// check to see if the extendant is a sequence
+	@if $optional {
+		@extend #{$extendant-selector} !optional;
+	}
+	@else {
+		@extend #{$extendant-selector};
+	}
+
+	// we need to take this extendant, and peel it, merging every property found
+
+	$caller-properties: map-get($--ds-properties-map, -ds-amp());
+	$extendant-properties: ();
+
+	$old-selector: $extendant-selector;
+
+	$peeled-selector: $old-selector;
+	$entered: false;
+	@while not $entered or $peeled-selector != $old-selector {
+		$entered: true;
+		// properties of current descendent of extendant
+		$current-properties: map-get($--ds-properties-map, $peeled-selector);
+
+		@if $current-properties {
+			@each $key, $value in $current-properties {
+				@if not map-has-key($extendant-properties, $key) {
+					// more specific things take precedence, so deeper levels don't overwrite
+					// or in other words, only write if it doesn't already exist.
+					$extendant-properties: map-merge($extendant-properties, ($key: $value));	
+				}
+			}
+		}
+
+		$old-selector: $peeled-selector;
+		$peeled-selector: -ds-peel-selector($old-selector);
+	}
+
+	$properties: map-merge($caller-properties, $extendant-properties);
+	@include -ds-properties-into-global-map($properties);
+
+
+	// @if map-has-key($--ds-extendants-map, -ds-amp()) {
+	// 	$extendants: map-get($--ds-extendants-map, -ds-amp());
+	// 	// and merge this name value pair, overwriting anything currently at $name
+	// 	$extendants: -ds-prepend($extendants, $selector);
+
+	// 	// then merge into the global map, overwriting the current context with the new merged extendants
+	// 	@include -ds-extendants-into-global-map($extendants);
+	// }
+	// @else {
+	// 	$extendants: ($selector);
+
+	// 	@include -ds-extendants-into-global-map($extendants);
+	// }
+}
+
+// @function -ds-fetch-extendants($selector) {
+// 	@return map-get($--ds-extendants-map, $selector);
+// }
+
+
+@function -ds-fetch-from-context($context, $name) {
+	@if $context and map-has-key($context, $name) {
+		@return map-get($context, $name);
+	}
+	@else {
+		@return null;
+	}
+}
+
+
+@function -ds-fetch-from-selector($selector, $name) {
+	$current-context: map-get($--ds-properties-map, $selector);
+
+	$give-value: -ds-fetch-from-context($current-context, $name);
+
+	@return $give-value;
+}
+
+@function -ds-property-recursive($selector, $name) {
+	// Properties are resolved searching in this priority order:
+	// - current
+	// - extendants
+	// - things with same leaf selector minus pseudo-classes from right to left
+	// - things with same leaf selector minus attributes from right to left
+	// - things with same leaf selector minus relational triggers from left to right in rightmost compound
+	// - things with same leaf selector minus compounding selectors from right to left (split compounding?)
+	// - things with same leaf selector minus pseudo-elements from right to left
+	// - things with the exact same complete leaf selector, peeling root-most compounds from left to right
+	// - peeled context, going into the possible descendant tree once that runs out.
+
+	// recursive structure:
+	// first check if selector is empty. return null if so
+	// then fetch at this selector. return result if found
+	// then look for extendants, call self on them if found. return result if found.
+
+	// gauntlet of checks.
+	// each mutates and checks if result is different.
+	// if it's different, call self. return result if found.
+	// otherwise continue down gauntlet
+
+	// return null if all gauntlets go through with no results found
+
+	// save the entire unpurged selector for later peeling
+	$original-selector: $selector;
+
+
+	// perform sanity checks on the selector.
+	// if it's empty or null terminate here.
+	@if str-length($selector) == 0 or not $selector {
+		@return null;
+	}
+
+	// check current and return if something is found.
+	$result: -ds-fetch-from-selector($selector, $name);
+	@if $result {
+		@return $result;
+	}
+
+	// check extendant(s) and return if something is found.
+	// $extendant-selectors: -ds-fetch-extendants($selector);
+	// @if $extendant-selectors {
+	// 	@each $extendant in $extendant-selectors {
+	// 		$result: -ds-property-recursive($extendant, $name);
+
+	// 		@if $result {
+	// 			@return $result;
+	// 		}
+	// 	}		
+	// }
+
+	// create new variables for purging process.
+	// old and new for each comparison to see if our purges are doing anything.
+	$old-selector: $selector;
+	$new-selector: $selector;
+
+	// a list of the functions that make up our gauntlet.
+	// - things with same leaf selector minus pseudo-classes from right to left
+	// - things with same leaf selector minus attributes from right to left
+	// - things with same leaf selector minus relational triggers from left to right in rightmost compound
+	// - things with same leaf selector minus compounding selectors from right to left (split compounding?)
+	// - things with same leaf selector minus pseudo-elements from right to left
+	// - things with the exact same complete leaf selector, peeling root-most compounds from left to right
+	// - peeled context, going into the possible descendant tree once that runs out.
+	$selector-transformers: (-ds-purge-tree-pseudo-class, -ds-purge-tree-attribute, -ds-purge-tree-relational, -ds-purge-tree-compounding, -ds-purge-tree-pseudo-element, -ds-purge-tree-root-compound);
+
+	// iterate through the gauntlet functions
+	@each $transforming-function in $selector-transformers {
+
+		// perform a purge with the current gauntlet
+		$new-selector: call($transforming-function, $old-selector);
+		// see if that purge did anything (if the thing being purged existed)
+		@while $new-selector != $old-selector {
+
+			// fetch at this level.
+			// performing a recursive call at this level would erroneously cause redundant peels.
+			// the peel should only be done after all purges have occurred.
+			// $result: -ds-property-recursive($new-selector);
+			$result: -ds-fetch-from-selector($new-selector, $name);
+
+			@if $result {
+				@return $result;
+			}
+			// save the selector we just got to as the old.
+			$old-selector: $new-selector;
+			
+			// create a new selector from that
+			$new-selector: call($transforming-function, $old-selector);
+		}
+	}
+
+
+	$peeled-selector: -ds-peel-selector($original-selector);
+	$result: -ds-property-recursive($peeled-selector, $name);
+
+	@if $result {
+		@return $result;
+	}
+
+	@return null;
+}
+
+/// retrieves a value by name from the current context and ancestors
+/// handles pseudo selectors gracefully. when a selector is nested inside a pseudo selector we look for that nested item on the level below the pseudo if the pseudo doesn't specifically override.
+@function ds-property($name) {
+	// TODO: perform legality checks on name and -ds-amp
+
+	@return -ds-property-recursive(-ds-amp(), $name);
+}
+
+
+
+/// saves a name value pair to the current context.
+/// also outputs that name value pair as css.
+@mixin ds-attribute($name, $value) {
+	#{$name}: $value;
+	@include ds-property($name, $value);
+}
+
+/// outputs an existing name value pair in current context as css.
+// allow an argument of 'all' to apply everything that can be found? too gross? yes, save that for deployables
+@mixin ds-apply($name, $css-name: null) {
+	@if not $css-name {
+		$css-name: $name;
+	}
+
+	$value: ds-property($name);
+	@if $value {
+		#{$css-name}: $value;
+	}
+	@else {
+		@warn "You tried to apply an attribute, but it wasn't found. #{$name}";
+	}
+}
+
+/// performs a function with args on the value specified by name
+/// only performs this transformation at this current context
+/// outputs the result as css
+@mixin ds-transform($name, $func, $other-args...) {
+	$value: ds-property($name);
+	@if $value {
+		@if length($other-args) == 1 {
+			#{$name}: call($func, $value, nth($other-args, 1));
+		}
+		@else  {
+			#{$name}: call($func, $value, $other-args...);
+		}
+	}
+	@else {
+		@warn "You tried to apply an attribute, but it wasn't found. #{$name}";
+	}	
+}
+
+/// acts on several properties and outputs their value to css-name
+@mixin ds-operate($css-name, $func, $args...) {
+	$kwargs: keywords($args);
+
+	// we need to guarantee only keyword arguments
+	// if kwargs has a different size than the iterated size of args, freak out
+	$args-size: 0;
+	@each $key, $value in $args {
+		$args-size: $args-size + 1;
+	}
+
+	@if length($kwargs) < $args-size {
+		@error "You can only pass keyword arguments to this function.";
+	}
+
+	@each $key, $value in $kwargs {
+
+		$arg-property-name: -ds-get-property-name-arg($value);
+
+		@if $arg-property-name {
+			$result: ds-property($arg-property-name);
+
+			@if $result {
+				$kwargs: map-remove($kwargs, $key);
+
+				$kwargs: map-merge($kwargs, ($key: $result));
+			}
+			@else {
+				@error "Property #{$value} cannot be found for operation #{$func}";
+			}
+		}
+	}
+
+	#{$css-name}: call($func, $kwargs...);
+}
+
+
+
+/// gives the current context selector access to attributes of the passed selector
+@mixin ds-descend($selector) {
+	
+}
+
+
+
+
+
+// want
+@mixin ds-property-spread($name, $value, $attrs...) {
+
+}
+@mixin ds-attribute-spread($name, $value, $attrs...) {
+
+}
+@mixin ds-property-apply($name, $attrs...) {
+
+}
+
+// ds-inherit-property that allows a selector to only grab one attribute from another?
