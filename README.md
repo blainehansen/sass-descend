@@ -1,4 +1,23 @@
-# Basic Usage (Storing and Retrieving)
+# Descend, Easy Sass Properties
+
+## **This project is under active development.**
+
+**It is not ready for use, but Pull Requests are welcome!**
+
+Go ahead and contact me if you'd like to help with any of the following tasks, or if you have input or thoughts about the library.
+
+Roadmap:
+
+- Finalize storage and access model. The current recursive system is too opaque and potentially prone to confusing surprises.
+- Make useable as node package on npm.
+- Create Gulp plugin.
+- Make useable as Meteor package.
+	- Either finalize [fourseven:scss pull request](https://github.com/fourseven/meteor-scss/pull/238) to allow custom javascript functions, or create and maintain a fork of that project allowing it.
+- Make useable by ruby sass.
+	- Write ruby versions of custom functions.
+
+
+## Basic Usage (Storing and Retrieving)
 
 Descend is a library that allows you to store properties on your selectors, and retrieve them at deeper levels.
 
@@ -48,6 +67,148 @@ You can override parent values at deeper levels.
 			color: ds-property(color) // -> green
 ```
 
+`ds-property` only sets the property so you can reference it, but it isn't output as css. To do that, use `ds-attribute`.
+
+```sass
+.component
+	@include ds-property(color, red)
+	width: 500px
+
+.different-component
+	@include ds-attribute(color, red)
+	width: 500px
+```
+
+The above would compile to this.
+
+```css
+.component {
+	width: 500px;
+}
+.different-component {
+	color: red;
+	width: 500px;
+}
+```
+
+## Apply and Transform
+
+`ds-apply` can be used to output a property as css at this nesting level, optionally to a specific attribute name. It doesn't save the property at that level.
+
+```sass
+.component
+	@include ds-property(font-size, 20px)
+	@include ds-property(color, red)
+
+	p
+		@include ds-apply(font-size)
+		@include ds-apply(color, background-color)
+```
+compiles to
+
+```css
+.component p {
+	font-size: 20px;
+	background-color: red;
+}
+```
+
+`ds-transform` and `ds-operate` are similar, but you can pass them a function to be performed on the property first.
+
+`ds-transform` uses the property value as the first function argument, and you can pass further arguments, either normally or as keywords.
+
+```sass
+.component
+	@include ds-property(color, red)
+
+	p
+		@include ds-transform(color, transparentize, 0.1))
+```
+```css
+.component p {
+	color: rgba(255, 0, 0, 0.9);
+}
+```
+
+`ds-operate` can use multiple properties, by referring to them as `'self.property-name'`, and it outputs the result to the attribute name you pass. **Note**: because of a libsass bug, the function arguments have to be passed as keyword arguments.
+
+```sass
+.component
+	@include ds-property(primary-color, #f00)
+	@include ds-property(secondary-color, #00f)
+
+	p
+		@include ds-operate(color, mix, $color1: 'self.primary-color', $color2: 'self.secondary-color', $weight: 25%)
+```
+```css
+.component p {
+	color: #3f00bf;
+}
+```
+
+## Extend
+
+`ds-extend` can be used identically to normal sass `@extend`, giving you access to the properties of the extended selector. And it calls sass `@extend` for you in the process.
+
+```sass
+.base-component
+	@include ds-attribute(color, red)
+	width: 500px
+
+.component
+	@include ds-extend('.base-component')
+
+	p
+		@include ds-transform(color, adjust-hue, 120) // basically results in green
+```
+```css
+.base-component, .component {
+	color: red;
+	width: 500px;
+}
+
+.component p {
+	color: green;
+}
+```
+
+It works for extend-only placeholders, and you can extend multiple selectors. Properties will be overwritten by the latest thing you extend.
+
+```sass
+%thingy
+	@include ds-attribute(color, green)
+
+%other-thingy
+	@include ds-attribute(font-size, 20px)
+
+.dealy
+	@include ds-attribute(color, silver)
+
+.component
+	@include ds-extend('%thingy')
+	@include ds-extend('%other-thingy')
+	@include ds-extend('.dealy')
+
+	p
+		@include ds-apply(color) // -> silver, because .dealy was called most recently
+		@include ds-apply(font-size) // -> 20px
+```
+```css
+.dealy, .component {
+	color: silver;
+}
+
+.component p {
+	color: silver;
+	font-size: 20px;
+}
+```
+
+
+
+
+## The Nitty Gritty
+
 Descend searches for every version of the current selector before going up the tree. In this example it searches for all versions of `.child-component` first.
 
 ```sass
@@ -88,9 +249,9 @@ This is even true if you have something right below it in the nesting.
 			// anything that's under .child-component takes precedence
 ```
 
-## Search Order and Precedence
+### Search Order and Precedence
 
-The search order is powerful and semantic, but it can be a little hard to get at first.
+<!-- The search order is powerful and semantic, but it can be a little hard to get at first. -->
 
 Here's the search order breakdown of a really hairy selector. Frankly, if you ever have something this complex, you've probably done something wrong, but it doesn't hurt to understand.
 
@@ -142,7 +303,7 @@ Here's the search order breakdown of a really hairy selector. Frankly, if you ev
 ```
 
 
-## Other Blocks
+### Other Blocks
 
 You have access to properties on any less specific but still matching versions of the current selector.
 
@@ -217,7 +378,7 @@ a[target=_blank]
 ```
 
 
-## Triggers
+### Triggers
 
 When a selector is triggered by another, properties are still available.
 
@@ -274,7 +435,7 @@ Right now the `>` isn't supported in this way, but the plan is to treat it like 
 ``` -->
 
 
-## Compounding Selectors
+### Compounding Selectors
 
 Compounding selectors are evaluated by peeling from right to left.
 
@@ -318,7 +479,7 @@ Compounding selectors are evaluated by peeling from right to left.
 ```
 
 
-## No Comma Selectors
+### No Comma Selectors
 
 Comma separated lists of selectors aren't allowed.
 
@@ -327,7 +488,7 @@ Comma separated lists of selectors aren't allowed.
 	@include ds-property(color, red) // -> ERROR: not allowed
 ```
 
-Read on to the [extend functionality]() to see how you can pull off the same thing.
+Use the extend functionality to pull off the same thing.
 
 ```sass
 .component
@@ -338,8 +499,6 @@ Read on to the [extend functionality]() to see how you can pull off the same thi
 	color: ds-property(color) // -> red
 ```
 
-# Attributes and Apply
 
-# Transform and Operate
 
-# Extend
+*Enjoy!*
