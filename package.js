@@ -1,8 +1,8 @@
 Package.describe({
-  name: 'faichenshing:sass-descend',
+  name: 'faichenshing:descend',
   version: '0.0.1',
   // Brief, one-line summary of the package.
-  summary: 'Retrievable properties for sass.',
+  summary: 'Property lookup library for sass.',
   // URL to the Git repository containing the source code for this package.
   git: 'https://github.com/blainehansen/sass-descend',
   // By default, Meteor will default to using README.md for documentation.
