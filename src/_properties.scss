@@ -26,13 +26,23 @@ $--ds-properties-map: ();
 /// saves a name value pair to the current context.
 // consider restricting the places you can save things, such as not in psuedo-classes. encourage them to instead use attribute transformations
 @mixin ds-property($name, $value) {
-	// place the property in the global map
+	// perform a series of checks of some sort on the amp, to see if we're in a valid context to store.
+	// this purge should remove all state pseudo-classes
+	// shuffle id's to the far left
+	// and slice off all but one class.
+	@if not -ds-has-state-pseudo(#{&}) {
+		@error "Behavior not allowed. You can't store a property on a selector with state pseudo-classes like :hover or :focus. Use transformations instead.";
+	}
+	@if not -ds-has-state-classes(#{&}) {
+		@error "Behavior not allowed. You can't store a property on a selector with more than one class on a compound. Use a combination of ds-extend and/or ds-transform instead.";
+	}
 
+	$current-selector: -ds-amp();
 	// see if this current context already exists
-	@if map-has-key($--ds-properties-map, -ds-amp()) {
+	@if map-has-key($--ds-properties-map, $current-selector) {
 		// if it does
 		// grab it's property map
-		$properties: map-get($--ds-properties-map, -ds-amp());
+		$properties: map-get($--ds-properties-map, $current-selector);
 		// and merge this name value pair, overwriting anything currently at $name
 		$properties: map-merge($properties, ($name: $value));
 
@@ -325,24 +335,24 @@ $--ds-properties-map: ();
 
 
 
-/// gives the current context selector access to attributes of the passed selector
-@mixin ds-descend($selector) {
+// /// gives the current context selector access to attributes of the passed selector
+// @mixin ds-descend($selector) {
 	
-}
+// }
 
 
 
 
 
-// want
-@mixin ds-property-spread($name, $value, $attrs...) {
+// // want
+// @mixin ds-property-spread($name, $value, $attrs...) {
 
-}
-@mixin ds-attribute-spread($name, $value, $attrs...) {
+// }
+// @mixin ds-attribute-spread($name, $value, $attrs...) {
 
-}
-@mixin ds-property-apply($name, $attrs...) {
+// }
+// @mixin ds-property-apply($name, $attrs...) {
 
-}
+// }
 
 // ds-inherit-property that allows a selector to only grab one attribute from another?

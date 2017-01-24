@@ -1,5 +1,5 @@
 Package.describe({
-  name: 'faichenshing:sass-descend',
+  name: 'faichenshing:descend',
   version: '0.0.1',
   // Brief, one-line summary of the package.
   summary: 'Retrievable properties for sass.',
@@ -12,7 +12,7 @@ Package.describe({
 
 Package.onUse(function(api) {
   api.versionsFrom('1.4.2.3');
-  api.use('ecmascript');
+  // api.use('ecmascript');
   // api.mainModule('sass-descend.js');
 
   api.use('fourseven:scss');
@@ -23,7 +23,7 @@ Package.onUse(function(api) {
 });
 
 Package.onTest(function(api) {
-  api.use('ecmascript');
+  // api.use('ecmascript');
   api.use('tinytest');
   api.use('sass-descend');
   api.mainModule('sass-descend-tests.js');
