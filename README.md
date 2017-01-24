@@ -1,6 +1,6 @@
 # Descend, Easy Sass Properties
 
-## **This project is under active development.**
+## This project is under active development.
 
 **It is not ready for use, but Pull Requests are welcome!**
 
@@ -9,8 +9,10 @@ Go ahead and contact me if you'd like to help with any of the following tasks, o
 Roadmap:
 
 - Finalize storage and access model. The current recursive system is too opaque and potentially prone to confusing surprises.
+- Unit tests (probably using [true](https://www.npmjs.com/package/sass-true)).
 - Make useable as node package on npm.
 - Create Gulp plugin.
+- Create Grunt plugin.
 - Make useable as Meteor package.
 	- Either finalize [fourseven:scss pull request](https://github.com/fourseven/meteor-scss/pull/238) to allow custom javascript functions, or create and maintain a fork of that project allowing it.
 - Make useable by ruby sass.
