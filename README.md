@@ -249,60 +249,6 @@ This is even true if you have something right below it in the nesting.
 			// anything that's under .child-component takes precedence
 ```
 
-### Search Order and Precedence
-
-<!-- The search order is powerful and semantic, but it can be a little hard to get at first. -->
-
-Here's the search order breakdown of a really hairy selector. Frankly, if you ever have something this complex, you've probably done something wrong, but it doesn't hurt to understand.
-
-```sass
-.container
-	.other-container
-		&:hover
-			.trigger[target=_blank]:hover+.parent.right.green[target=_blank]
-				.finally
-					&:hover
-						// if we do this
-						color: ds-property(color)
-
-// that first searches the complete selector
-.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank] .finally:hover
-
-// then we look for any matching but less specific things with the same leaf selector (.finally:hover)
-
-// we start by removing pseudo-classes from right to left
-.container .other-container:hover .first+.trigger[target=_blank]+.parent.right.green[target=_blank] .finally:hover
-.container .other-container .first+.trigger[target=_blank]+.parent.right.green[target=_blank] .finally:hover
-
-// then attributes from right to left
-.container .other-container .first+.trigger[target=_blank]+.parent.right.green .finally:hover
-.container .other-container .first+.trigger+.parent.right.green .finally:hover
-
-// triggering relationals from left to right in the rightmost compound
-.container .other-container .trigger+.parent.right.green .finally:hover
-.container .other-container .parent.right.green .finally:hover
-
-// compounding selectors from right to left
-.container .other-container .parent.right .finally:hover
-.container .other-container .parent .finally:hover
-
-// the root most selector
-.other-container .parent .finally:hover
-.parent .finally:hover
-.finally:hover
-
-// and then finally we peel any less important things off the leaf and repeat the process...
-// we do that in the same order we removed them in the previous steps
-.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank] .finally
-	// etc...
-
-
-// and once the leaf is completely bare, we go up to the parent in the original selector
-.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank]
-	// etc...
-```
-
-
 ### Other Blocks
 
 You have access to properties on any less specific but still matching versions of the current selector.
@@ -497,6 +443,60 @@ Use the extend functionality to pull off the same thing.
 .other-component
 	@include ds-extend('.component')
 	color: ds-property(color) // -> red
+```
+
+
+### Search Order and Precedence
+
+<!-- The search order is powerful and semantic, but it can be a little hard to get at first. -->
+
+Here's the search order breakdown of a really hairy selector. Frankly, if you ever have something this complex, you've probably done something wrong, but it doesn't hurt to understand.
+
+```sass
+.container
+	.other-container
+		&:hover
+			.trigger[target=_blank]:hover+.parent.right.green[target=_blank]
+				.finally
+					&:hover
+						// if we do this
+						color: ds-property(color)
+
+// that first searches the complete selector
+.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank] .finally:hover
+
+// then we look for any matching but less specific things with the same leaf selector (.finally:hover)
+
+// we start by removing pseudo-classes from right to left
+.container .other-container:hover .first+.trigger[target=_blank]+.parent.right.green[target=_blank] .finally:hover
+.container .other-container .first+.trigger[target=_blank]+.parent.right.green[target=_blank] .finally:hover
+
+// then attributes from right to left
+.container .other-container .first+.trigger[target=_blank]+.parent.right.green .finally:hover
+.container .other-container .first+.trigger+.parent.right.green .finally:hover
+
+// triggering relationals from left to right in the rightmost compound
+.container .other-container .trigger+.parent.right.green .finally:hover
+.container .other-container .parent.right.green .finally:hover
+
+// compounding selectors from right to left
+.container .other-container .parent.right .finally:hover
+.container .other-container .parent .finally:hover
+
+// the root most selector
+.other-container .parent .finally:hover
+.parent .finally:hover
+.finally:hover
+
+// and then finally we peel any less important things off the leaf and repeat the process...
+// we do that in the same order we removed them in the previous steps
+.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank] .finally
+	// etc...
+
+
+// and once the leaf is completely bare, we go up to the parent in the original selector
+.container .other-container:hover .first+.trigger[target=_blank]:hover+.parent.right.green[target=_blank]
+	// etc...
 ```
 
 
