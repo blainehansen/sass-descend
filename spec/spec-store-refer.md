@@ -1,4 +1,32 @@
-## Basic Usage (Storing and Retrieving)
+Descend has two separate systems for storing and retrieving values, one based on the tree (Bubble), and the other based on the concept of a component with different states (Deployable).
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Descend is a library that allows you to store properties on your selectors, and retrieve them at deeper levels.
 

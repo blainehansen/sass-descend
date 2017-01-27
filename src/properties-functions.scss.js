@@ -97,12 +97,45 @@ var customFunctions = {
 
 		selector = selector.replace(/ ([\>\+\~]) /g, '$1')
 
+		// remove whitespace around attribute equalities
 		selector = selector.replace(/ *([\^\|\*\$\~]?\=) */g, '$1')
 
+		// remove whitespace around attribute key value pairs
 		selector = selector.replace(/(\[) *(\S*?) */g, '$1$2')
 		selector = selector.replace(/ *(\S*?) *(\])/g, '$1$2')
 
+		var selectorArray = selector.split(' ')
+		// console.log(selectorArray)
+
+		// sort the entire selector
+		// pull out the pieces
+		// - element
+		// - id
+		// - psuedo-elements
+		// - classes
+		// - attributes
+		// - 
+
+		// selector = selector.replace(/\b([a-z1-6]*)([^\#\s]*)(\#[\w\-]+)/g, '$1$3$2')
+
+		// // slice extra classes
+		// selector = selector.replace(/\b([^\.\s]*)(\.[\w\-]+)([^\.\s]*)(\#[\w\-]+)/g, '$1$3$2')
+
 		return new sass.types.String(selector)
+	},
+	'-ds-has-state-pseudo($selector)': function (selector) {
+		selector = selector.getValue()
+		if (/:(hover|active|focus|visited|link|enabled|disabled|checked)/.test(selector)) {
+			return sass.types.Boolean.TRUE
+		}
+		return sass.types.Boolean.FALSE
+	},
+	'-ds-has-state-classes($selector)': function (selector) {
+		selector = selector.getValue()
+		if (/\.[\w\-]+[^\.\s]*\.[\w\-]+/.test(selector)) {
+			return sass.types.Boolean.TRUE
+		}
+		return sass.types.Boolean.FALSE
 	},
 	'-ds-peel-selector($selector)': function (selector) {
 		var ancestorsArray = selector.getValue().split(' ')
