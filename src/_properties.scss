@@ -22,6 +22,15 @@ $--ds-properties-map: ();
 // }
 
 
+@mixin -ds-check-save-allowed() {
+	@if -ds-has-state-pseudo(#{&}) {
+		@error "Behavior not allowed. You can't store a property on a selector with state pseudo-classes like :hover or :focus. Use ds-transform on an existing property instead.";
+	}
+	@if -ds-has-state-classes(#{&}) {
+		@error "Behavior not allowed. You can't store a property on a selector with more than one class on a compound. Use a combination of ds-extend and/or ds-transform instead.";
+	}
+}
+
 
 /// saves a name value pair to the current context.
 // consider restricting the places you can save things, such as not in psuedo-classes. encourage them to instead use attribute transformations
@@ -30,12 +39,7 @@ $--ds-properties-map: ();
 	// this purge should remove all state pseudo-classes
 	// shuffle id's to the far left
 	// and slice off all but one class.
-	@if not -ds-has-state-pseudo(#{&}) {
-		@error "Behavior not allowed. You can't store a property on a selector with state pseudo-classes like :hover or :focus. Use transformations instead.";
-	}
-	@if not -ds-has-state-classes(#{&}) {
-		@error "Behavior not allowed. You can't store a property on a selector with more than one class on a compound. Use a combination of ds-extend and/or ds-transform instead.";
-	}
+	@include -ds-check-save-allowed();
 
 	$current-selector: -ds-amp();
 	// see if this current context already exists
@@ -73,6 +77,8 @@ $--ds-properties-map: ();
 		@extend #{$extendant-selector};
 	}
 
+	@include -ds-check-save-allowed();
+
 	// we need to take this extendant, and peel it, merging every property found
 
 	$caller-properties: map-get($--ds-properties-map, -ds-amp());
@@ -103,26 +109,7 @@ $--ds-properties-map: ();
 
 	$properties: map-merge($caller-properties, $extendant-properties);
 	@include -ds-properties-into-global-map($properties);
-
-
-	// @if map-has-key($--ds-extendants-map, -ds-amp()) {
-	// 	$extendants: map-get($--ds-extendants-map, -ds-amp());
-	// 	// and merge this name value pair, overwriting anything currently at $name
-	// 	$extendants: -ds-prepend($extendants, $selector);
-
-	// 	// then merge into the global map, overwriting the current context with the new merged extendants
-	// 	@include -ds-extendants-into-global-map($extendants);
-	// }
-	// @else {
-	// 	$extendants: ($selector);
-
-	// 	@include -ds-extendants-into-global-map($extendants);
-	// }
 }
-
-// @function -ds-fetch-extendants($selector) {
-// 	@return map-get($--ds-extendants-map, $selector);
-// }
 
 
 @function -ds-fetch-from-context($context, $name) {
@@ -332,15 +319,6 @@ $--ds-properties-map: ();
 
 	#{$css-name}: call($func, $kwargs...);
 }
-
-
-
-// /// gives the current context selector access to attributes of the passed selector
-// @mixin ds-descend($selector) {
-	
-// }
-
-
 
 
 

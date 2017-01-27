@@ -105,7 +105,7 @@ var customFunctions = {
 		selector = selector.replace(/ *(\S*?) *(\])/g, '$1$2')
 
 		var selectorArray = selector.split(' ')
-		console.log(selectorArray)
+		// console.log(selectorArray)
 
 		// sort the entire selector
 		// pull out the pieces
@@ -131,6 +131,7 @@ var customFunctions = {
 		return sass.types.Boolean.FALSE
 	},
 	'-ds-has-state-classes($selector)': function (selector) {
+		selector = selector.getValue()
 		if (/\.[\w\-]+[^\.\s]*\.[\w\-]+/.test(selector)) {
 			return sass.types.Boolean.TRUE
 		}
