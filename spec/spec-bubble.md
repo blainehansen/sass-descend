@@ -75,7 +75,7 @@ If you define a property on something, and then open up that same selector again
 ```
 
 
-## Transformations
+### Transformations
 
 `bu-transform` and `bu-operate` both can be passed a function to be called on a property value.
 
@@ -142,7 +142,7 @@ Both of those functions can return and save at the same time.
 ```
 
 
-## Descend and Extend
+### Descend and Extend
 
 `bu-extend` and `bu-descend` are all about connecting a selector to another.
 
@@ -218,7 +218,7 @@ This also works for extend-only placeholders.
 ```
 
 
-## Complex Selectors and &
+### Complex Selectors and &
 
 Some advanced uses of `&` cause unexpected behavior, and you need to use special mixins to make them work.
 

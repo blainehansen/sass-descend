@@ -100,7 +100,7 @@ If you define a property on something, and then open up that same selector again
 ```
 
 
-## Transformations
+### Transformations
 
 `bu-transform` and `bu-operate` both can be passed a function to be called on a property value.
 
@@ -167,7 +167,7 @@ Both of those functions can return and save at the same time.
 ```
 
 
-## Descend and Extend
+### Descend and Extend
 
 `bu-extend` and `bu-descend` are all about connecting a selector to another.
 
@@ -243,9 +243,7 @@ This also works for extend-only placeholders.
 ```
 
 
-## Complex Selectors and &
-
-**The following mixins and features are still under construction.**
+### Complex Selectors and &
 
 Some advanced uses of `&` cause unexpected behavior, and you need to use special mixins to make them work.
 
@@ -359,10 +357,7 @@ Suffixing of `&` also works with `bu-suffix`.
 <!-- when checking for anything nested or related, check to see if context stack matches first? -->
 
 
-
 ## Deployables
-
-**Deployables are still under construction.**
 
 Deployables allow you to define a component with state properties, which you can then reference from the content of the component. Then you can define different versions and transformations of the component, with different values of those state properties, and the changes you make will cascade to all the references.
 
