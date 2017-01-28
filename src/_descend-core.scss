@@ -1,0 +1,185 @@
+$--ds-properties-map: ();
+
+@function -ds-amp() {
+	@if not & {
+		@error "Behavior not allowed. You can't use properties in the global context. Just use normal variables for that.";
+	}
+	@else if length(&) != 1 {
+		@error "Behavior not allowed. You can't use properties in comma separated selectors";
+	}
+
+	@return -ds-sanify-selector(#{&});
+}
+
+@function -ds-properties-into-global-map($properties) {
+	// @debug $--ds-properties-map;
+	$--ds-properties-map: map-merge($--ds-properties-map, (-ds-amp(): $properties)) !global;
+	// @debug $--ds-properties-map;
+
+	@return null;
+}
+
+@function -ds-property-save($name, $value) {
+	// @debug 'ds-property-save';
+
+	$current-selector: -ds-amp();
+	// see if this current context already exists
+	@if map-has-key($--ds-properties-map, $current-selector) {
+		// if it does
+		// grab it's property map
+		$properties: map-get($--ds-properties-map, $current-selector);
+		// and merge this name value pair, overwriting anything currently at $name
+		$properties: map-merge($properties, ($name: $value));
+
+		// then merge into the global map, overwriting the current context with the new merged properties
+		$garbage: -ds-properties-into-global-map($properties);
+	}
+	@else {
+		// if it doesn't
+		// create one from this name value pair
+		$properties: ($name: $value);
+		// place it on the context and merge with the global map
+		$garbage: -ds-properties-into-global-map($properties);
+	}
+
+	@return null;
+}
+
+
+@function -ds-fetch-from-context($context, $name) {
+	@if $context and map-has-key($context, $name) {
+		@return map-get($context, $name);
+	}
+	@else {
+		@return null;
+	}
+}
+
+
+@function -ds-fetch-from-selector($selector, $name) {
+	$current-context: map-get($--ds-properties-map, $selector);
+
+	$give-value: -ds-fetch-from-context($current-context, $name);
+
+	@return $give-value;
+}
+
+
+@function -ds-property-recursive($selector, $name) {
+	// @debug $selector;
+	// termination case
+	@if str-length($selector) == 0 or not $selector {
+		@return null;
+	}
+
+	// check current and return if something is found.
+	$result: -ds-fetch-from-selector($selector, $name);
+	@if $result {
+		@return $result;
+	}
+
+	// peel it, letting the javascript do the heavy lifting
+	$peeled-selector: -ds-peel-selector($selector);
+
+	// since we didn't find a result earlier, return the recursion result
+	@return -ds-property-recursive($peeled-selector, $name);
+}
+
+
+
+
+
+
+/// performs a function with args on the value specified by name
+/// only performs this transformation at this current context
+/// outputs the result as css
+@function -ds-transform($property, $func, $args...) {
+	$value: -ds-property-recursive(-ds-amp(), $property);
+
+	@if $value {
+		@if length($args) == 1 {
+			@return call($func, $value, nth($args, 1));
+		}
+		@else  {
+			@return call($func, $value, $args...);
+		}
+	}
+	@else {
+		@error "You tried to perform a transformation on property that doesn't exist. #{$property}";
+	}	
+}
+
+/// acts on several properties and outputs their value to css-name
+@function -ds-operate($func, $args...) {
+	$kwargs: keywords($args);
+
+	// we need to guarantee only keyword arguments
+	// if kwargs has a different size than the iterated size of args, freak out
+	$args-size: 0;
+	@each $key, $value in $args {
+		$args-size: $args-size + 1;
+	}
+
+	@if length($kwargs) < $args-size {
+		@error "You can only pass keyword arguments to this function.";
+	}
+
+	@each $key, $value in $kwargs {
+
+		$arg-property-name: -ds-get-property-name-arg($value);
+
+		@if $arg-property-name {
+			$result: -ds-property-recursive(-ds-amp(), $arg-property-name);
+
+			@if $result {
+				$kwargs: map-remove($kwargs, $key);
+
+				$kwargs: map-merge($kwargs, ($key: $result));
+			}
+			@else {
+				@error "Property #{$value} cannot be found for operation #{$func}";
+			}
+		}
+	}
+
+	@return call($func, $kwargs...);
+}
+
+
+
+@mixin -ds-descend($extendant-selector) {
+	// we need to take this extendant, and peel it, merging every property found
+	$caller-properties: map-get($--ds-properties-map, -ds-amp());
+	@if not $caller-properties {
+		$caller-properties: ();
+	}
+
+	$extendant-properties: ();
+
+	$old-selector: $extendant-selector;
+
+	$peeled-selector: $old-selector;
+	$entered: false;
+	@while not $entered or $peeled-selector != $old-selector {
+		$entered: true;
+		// properties of current descendent of extendant
+		$current-properties: map-get($--ds-properties-map, $peeled-selector);
+
+		@if $current-properties {
+			@each $key, $value in $current-properties {
+				@if not map-has-key($extendant-properties, $key) {
+					// more specific things take precedence, so deeper levels don't overwrite
+					// or in other words, only write if it doesn't already exist.
+					$extendant-properties: map-merge($extendant-properties, ($key: $value));	
+				}
+			}
+		}
+
+		$old-selector: $peeled-selector;
+		$peeled-selector: -ds-peel-selector($old-selector);
+	}
+
+	$properties: map-merge($caller-properties, $extendant-properties);
+
+	$garbage: -ds-properties-into-global-map($properties);
+}

@@ -1,4 +1,4 @@
-## Basic Properties (Bubble)
+## Bubble, basic properties
 
 The simpler of the two systems is Bubble. This simply looks naively up the tree looking for the property, and it has some important restrictions.
 
@@ -53,6 +53,25 @@ You can save a property and output it as css at the same time.
 .component {
 	color: red;
 }
+```
+
+If you define a property on something, and then open up that same selector again later, the property will still be available.
+
+```sass
+.container
+	@include bu-property(color, red)
+
+	.nested
+		@include bu-property(color, green)
+
+.container
+	@debug bu-property(color) // -> red
+
+	.nested
+		@debug bu-property(color) // -> green
+
+.container ~ .previous-block
+	@debug bu-property(color) // -> red
 ```
 
 
@@ -123,64 +142,79 @@ Both of those functions can return and save at the same time.
 ```
 
 
-## Extend
+## Descend and Extend
 
-`bu-extend` can be used identically to normal sass `@extend`, giving you access to the properties of the extended selector. And it calls sass `@extend` for you in the process.
+`bu-extend` and `bu-descend` are all about connecting a selector to another.
+
+`bu-descend` can take any selector that is valid to put properties on, and basically "connects" your current selector to that tree.
+
+```sass
+.parent
+	@include bu-property(color, red)
+	&.background
+		@include bu-property(background-color, green)
+		&.border
+			@include bu-property(border-color, silver)
+
+.extendee
+	@include bu-descend('.parent.override.thing')
+
+	@debug bu-property(color) // -> red
+	@debug bu-property(background-color) // -> green
+	@debug bu-property(border-color) // -> silver
+```
+
+You can descend from multiple selectors, and properties will be overwritten by the most recent thing you've descended.
+
+```sass
+.parent
+	@include bu-property(color, red)
+.other-parent
+	@include bu-property(width, 100px)
+.override
+	@include bu-property(color, green)
+
+
+.extendee
+	@include bu-descend('.parent')
+	@include bu-descend('.other-parent')
+	@include bu-descend('.override')
+
+	@debug bu-property(color) // -> green
+	@debug bu-property(width) // -> 100px
+```
+
+
+`bu-extend` is like `bu-descend`, except it also calls sass `@extend` for you, so normal css attributes are extended as well. It also means that if a selector doesn't exist all in one piece, it won't work.
 
 ```sass
 .base-component
-	@include bu-attribute(color, red)
+	color: bu-property(color, red)
 	width: 500px
 
+.thing
+	color: bu-property(color, green)
+	&.state
+		color: bu-property(color, blue)
+
 .component
-	@include bu-extend('.base-component')
-
-	p
-		@include bu-attribute-transform(color, adjust-hue, 120) // basically results in green
-```
-```css
-.base-component, .component {
-	color: red;
-	width: 500px;
-}
-
-.component p {
-	color: green;
-}
+	@include bu-extend('.base-component') // works just fine
+	@include bu-extend('.thing.state') // throws an error, since that selector technically doesn't exist all in one place
 ```
 
-It works for extend-only placeholders, and you can extend multiple selectors. Any property that already existed at this layer will be overwritten by `bu-extend`, and that includes properties from previous extends.
+This also works for extend-only placeholders.
 
 ```sass
-%thingy
-	@include bu-attribute(color, green)
-
-%other-thingy
-	@include bu-attribute(font-size, 20px)
-
-.dealy
-	@include bu-attribute(color, silver)
+%extend-placeholder
+	color: bu-property(color, green)
 
 .component
-	@include bu-property(color, red) // -> will be overwritten!
+	color: bu-property(color, red)
 
-	@include bu-extend('%thingy')
-	@include bu-extend('%other-thingy')
-	@include bu-extend('.dealy')
+	@include bu-extend('%extend-placeholder')
 
 	p
-		@include bu-apply(color) // -> silver, because .dealy was called most recently
-		@include bu-apply(font-size) // -> 20px
-```
-```css
-.dealy, .component {
-	color: silver;
-}
-
-.component p {
-	color: silver;
-	font-size: 20px;
-}
+		@debug bu-property(color) // -> green
 ```
 
 
@@ -232,6 +266,25 @@ To get the result you're expecting, use:
 	@include bu-inside('#context')
 		@debug bu-property(color) // -> red
 ```
+
+When using the `&` as a *prefix*, everything should work fine.
+
+```sass
+.container
+	color: bu-property(color, red)
+	
+	& ~ .before-thing
+		@debug bu-property(color) // -> red
+
+.btn
+	color: bu-property(color, red)
+	
+	// this is a special case, but it still works!
+	& + &
+		@debug bu-property(color) // -> red
+```
+
+
 
 Bubble also includes `bu-at-root` so you can have the selectors in question output to root to keep them simple, but also keep referencing the parent context.
 

@@ -1,1 +1,87 @@
-// 
+@import 'descend-core';
+
+/// saves a property
+@mixin bu-property($property, $value) {
+	$garbage: -ds-property-save($property, $value);
+}
+
+/// saves a property if passed one, else doesn't
+/// always returns result
+@function bu-property($property, $value: null) {
+	$give: null;
+	@if $value == null {
+		// only retrieve
+		$give: -ds-property-recursive(-ds-amp(), $property);
+	}
+	@else {
+		$garbage: -ds-property-save($property, $value);
+		// perhaps some sanitation?
+		$give: $value;
+	}
+
+	@return $give;
+}
+
+
+
+/// saves and doesn't return
+@mixin bu-transform($property, $func, $args...) {
+	$result: -ds-transform($property, $func, $args...);
+
+	$garbage: -ds-property-save($property, $result);
+}
+
+/// saves and returns
+@function bu-transform($property, $func, $args...) {
+	$result: -ds-transform($property, $func, $args...);
+
+	$garbage: -ds-property-save($property, $result);
+
+	@return $result;
+}
+
+/// returns the value without saving it
+@function bu-look-transform($property, $func, $args...) {
+	@return -ds-transform($property, $func, $args...);
+}
+
+
+
+@mixin bu-operate($property, $func, $args...) {
+	$result: -ds-operate($func, $args...);
+
+	$garbage: -ds-property-save($property, $result);
+}
+
+@function bu-operate($property, $func, $args...) {
+	$result: -ds-operate($func, $args...);
+
+	$garbage: -ds-property-save($property, $result);
+
+	@return $result;
+}
+
+@function bu-look-operate($func, $args...) {
+	@return -ds-operate($func, $args...);
+}
+
+
+
+/// makes the current context selector identical in attributes to the passed selector
+/// overrides anything set up in previous layers of the context
+@mixin bu-extend($extendant-selector, $optional: false) {
+	// check to see if the extendant is a sequence
+	@if $optional {
+		@extend #{$extendant-selector} !optional;
+	}
+	@else {
+		@extend #{$extendant-selector};
+	}
+
+	@include -ds-descend($extendant-selector);
+}
+
+
+@mixin bu-descend($extendant-selector) {
+	@include -ds-descend($extendant-selector);
+}
