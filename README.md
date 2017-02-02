@@ -182,7 +182,7 @@ Both of those functions can return and save at the same time.
 			@include bu-property(border-color, silver)
 
 .extendee
-	@include bu-descend('.parent.override.thing')
+	@include bu-descend('.parent.background.border')
 
 	@debug bu-property(color) // -> red
 	@debug bu-property(background-color) // -> green
@@ -224,7 +224,7 @@ You can descend from multiple selectors, and properties will be overwritten by t
 
 .component
 	@include bu-extend('.base-component') // works just fine
-	@include bu-extend('.thing.state') // throws an error, since that selector technically doesn't exist all in one place
+	@include bu-extend('.thing.state') // throws an error, since that selector technically doesn't exist all in one piece
 ```
 
 This also works for extend-only placeholders.
@@ -344,7 +344,6 @@ Suffixing of `&` also works with `bu-suffix`.
 	&-sidebar // compiles to #main-sidebar
 		@debug bu-property(color) // -> null
 
-// 
 #main
 	color: bu-property(color, red)
 
@@ -355,6 +354,8 @@ Suffixing of `&` also works with `bu-suffix`.
 
 <!-- Blaine, to achieve all of this, push to a global context stack right before including @content, and then pop immediately after -->
 <!-- when checking for anything nested or related, check to see if context stack matches first? -->
+
+
 
 
 ## Deployables
