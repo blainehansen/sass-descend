@@ -3,3 +3,133 @@
 // for each version
 // 	for each combination of allowed transforms (based on $compound argument)
 // 		rerun content with version state and compounded transformation for this combination
+
+// $--deployable-manifest: (
+// 	selector-string: (
+// 		version-states: (),
+// 		default-references: (),
+// 		version-references: (),
+// 		transforms: ()
+// 	)
+// );
+
+// $--deployable-version-states: (
+// 	selector-string: (
+// 		-dy-default: (
+// 			color: red,
+// 			etc: thing
+// 		)
+// 		'.open': (
+// 			color: blue,
+// 			etc: else
+// 		)
+// 	)
+// );
+
+// $--deployable-references: (
+// 	selector-string: (
+// 		-dy-default: (
+// 			color: red,
+// 			etc: thing
+// 		)
+// 		'.open': (
+// 			color: blue,
+// 			etc: else
+// 		)
+// 	)
+// );
+
+
+// this whole library works like this:
+// we have a global manifest of deployables
+// when you run depoyable on a simple root selector with no arguments, it adds it to the manifest
+// deployables have a list of state variables, references, versions, and transforms
+// when someone makes a state assignment on the default version, it adds it to the list and logs that reference (if any) on the default version
+// when someone makes a reference to a state variable, it logs that reference in the version, potentially default
+// when someone makes a state assignment on a different version, 
+// when someone runs build on the original deployable definition, it goes through all versions other than default, and 
+
+
+// so the solution is to reintroduce dy-apply
+// remove the function versions of everything that just return, and make all of them not return
+// then make both look versions require a css attribute name
+
+
+$--test-content-save: ();
+@mixin dy-content() {
+	// $thing: @content;
+	// @debug $thing;
+	$dummy-list: ();
+	$dummy-list: append($dummy-list, @content);
+	// map-merge($--test-content-save, ())
+}
+
+
+
+@mixin dy-deployable() {
+	// run checks on amp
+	// can only be at root
+	@if not -ds-check-at-root() {
+		@error "Deployables can only be declared at the document root.";
+	}
+	// and only a single simple selector
+	@if not -ds-check-simple-selector() {
+		@error "Deployables can only be declared on a single simple selector, like a .class or html element.";
+	}
+
+	// if valid, save this selector to the list of deployables
+
+
+
+
+
+
+
+
+	// later, check if already defined, maybe extending?
+	// check if extend placeholder
+}
+
+// we'll have to push the current version variables to a global context stack
+// @mixin dy-content() {
+
+// }
+
+
+// /// saves a property
+// @mixin dy-state($property, $value) {
+// 	$garbage: -ds-property-save($property, $value);
+// }
+
+// /// saves a property if passed one, else doesn't
+// /// always returns result
+// @function dy-state($property, $value: null) {
+// 	$give: null;
+// 	@if $value == null {
+// 		// only retrieve
+// 		$give: -ds-property-recursive(-ds-amp(), $property);
+// 	}
+// 	@else {
+// 		$garbage: -ds-property-save($property, $value);
+// 		// perhaps some sanitation?
+// 		$give: $value;
+// 	}
+
+// 	@return $give;
+// }
+
+
+// @mixin dy-deployable-build() {
+
+// }
+
+// @mixin dy-define-transform() {
+
+// }
+
+
+
+// dy-transform
+// dy-look-transform
+// dy-operate
+// dy-look-operate

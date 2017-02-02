@@ -366,14 +366,14 @@ Here's a basic example.
 ```sass
 .deployable-component
 	@include dy-deployable() // activates this selector as a deployable. only valid on a single simple selector
-	@include dy-state(color, red) // saves the default state
+	@include dy-define-state(color, red) // saves the default state
 
-	color: dy-state(color) // here's a reference to the state
+	@include dy-apply(color) // here's a reference to the state
 
 	&.open
-		@include dy-state(color, blue) // changes a state property when the deployable is this version
+		@include dy-define-state(color, blue) // changes a state property when the deployable is this version
 
-	@include dy-deployable-build() // closes the deployable definition and builds it
+	@include dy-build() // closes the deployable definition and builds it
 ```
 
 This will output something equivalent to this:
@@ -386,26 +386,28 @@ This will output something equivalent to this:
 		color: blue
 ```
 
-See how the Deployable remembered the reference (`color: dy-state(color)`), and output an adjusted version of it for `.open`?
+See how the Deployable remembered the reference (`@include dy-apply(color)`), and output an adjusted version of it for `.open`?
 
 This gets much more powerful when you have more references and versions.
 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	.nested-block
-		background-color: dy-look-transform(color, adjust-hue, 180)) // the direct complement
-		color: dy-state(color)
+		@include dy-look-transform(color, background-color, adjust-hue, 180)
+		@include dy-apply(color)
 
 	&.open
-		@include dy-state(color, blue)
+		@include dy-define-state(color, blue)
 
 	&:first-child
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 Compiles to something like:
 
@@ -439,33 +441,36 @@ You can create more specific versions to handle these kinds of situations.
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	.nested-block
-		background-color: dy-look-transform(color, adjust-hue, 180)) // the direct complement
-		color: dy-state(color)
+		@include dy-look-transform(color, background-color, adjust-hue, 180)
+		@include dy-apply(color)
+
 
 	&.open:first-child
 		// this will work even though it's defined before the others, because it's more specific
-		@include dy-state(color, silver)
+		@include dy-define-state(color, silver)
 
 	&.open
-		@include dy-state(color, blue)
+		@include dy-define-state(color, blue)
 
 	&:first-child
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 
 
-All of the Bubble functions have corollaries in Deployables. They all work the same, except that the Deployable versions can only be called in a Deployable, and are remembered by it.
+All of the Bubble functions have corollaries in Deployables. They all work the same, except that the Deployable versions can only be called in a Deployable and are remembered by it, and that the Deployable versions must be given a css attribute to output to.
 
-- `bu-property` and `dy-state`
-- `bu-transform` and `dy-transform`
-- `bu-look-transform` and `dy-look-transform`
-- `bu-operate` and `dy-operate`
-- `bu-look-operate` and `dy-look-operate`
+- `dy-apply($property-name, $css-name: null)`: outputs the property to the given css attribute, using the property name if none is supplied.
+- `dy-transform($property-name, $css-name: null, $function, $args...)`: transforms the property, saves it, and outputs the result to the given css attribute, using the property name if none is supplied.
+- `dy-look-transform($property-name, $css-name: null, $function, $args...)`: transforms the property, *doesn't* save it, and outputs the result to the given css attribute, using the property name if none is supplied.
+- `dy-operate($property-name, $css-name: null, $function, $args...)`: operates on the properties specified by args as `'self.property-name'`, saves the result to the property name you supply, and outputs the result to the given css attribute, using the property name if none is supplied.
+- `dy-look-operate($css-name, $function, $args...)`: operates on the properties specified by args as `'self.property-name'`, *doesn't* save the result, and outputs the result to the given css attribute.
 
 
 A valid version is any selector that contains the `&`, and which therefore refers to the deployable in some different situation. Here are some examples of valid places to make version changes.
@@ -481,25 +486,31 @@ Anything that's nested (like `.nested-block` above) isn't a valid version. It's 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
 
-	@include dy-state(color, blue) // -> ERROR, can't overwrite an existing state variable in the same version.
+	@include dy-define-state(color, blue) // -> ERROR, can't overwrite an existing state variable in the same version.
 
 	.nested-block
-		color: dy-state(color, green) // -> ERROR, invalid location to set deployable state, content
+		@include dy-define-state(color, green) // -> ERROR, invalid location to set deployable state, content
+		@include dy-apply(color)
+
+	@include dy-build()
 ```
 
 
-Also suffixing doesn't work at this point.
+Also, suffixing doesn't work at this point.
 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
 
 	&-suffix // compiles to .deployable-component-suffix
-		@include dy-state(color, blue) // -> ERROR, invalid location to set deployable state, this isn't a deployable component
+		@include dy-define-state(color, blue) // -> ERROR, invalid location to set deployable state, this isn't a deployable component
 ```
+
+<!-- blaine, explore the idea of a deployable interface, or basically a prepackaged set of transforms or states you can just layer on top of a deployable -->
+
 
 
 ### Transforms
@@ -509,12 +520,14 @@ You can define transforms on the component. These work very similarly to Version
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 
 ```sass
@@ -532,7 +545,9 @@ First a simple example.
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	// our transform
 	&:hover
@@ -540,12 +555,12 @@ First a simple example.
 
 	// our versions
 	&.green
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 
 	&.blue
-		@include dy-state(color, blue)
+		@include dy-define-state(color, blue)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 ```sass
 .deployable-component
@@ -572,8 +587,11 @@ And now a more complex one.
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
-	margin: dy-state(margin, 10px)
+	@include dy-define-state(color, red)
+	@include dy-define-state(margin, 10px)
+
+	@include dy-apply(color)
+	@include dy-apply(margin)
 
 	// our transforms
 	&.open
@@ -585,13 +603,13 @@ And now a more complex one.
 
 	// our versions
 	&.green
-		@include dy-state(color, green)
-		@include dy-state(margin, 20px)
+		@include dy-define-state(color, green)
+		@include dy-define-state(margin, 20px)
 
 	&.blue
-		@include dy-state(color, blue)
+		@include dy-define-state(color, blue)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 ```sass
 .deployable-component
@@ -646,7 +664,9 @@ To turn off all compounding, pass `false`. This means every version only gets th
 ```sass
 .deployable-component
 	@include dy-deployable($compound: false)
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	// our transforms
 	&.open
@@ -657,9 +677,9 @@ To turn off all compounding, pass `false`. This means every version only gets th
 
 	// our versions
 	&.green
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 ```sass
 .deployable-component
@@ -688,7 +708,9 @@ You can also pass a single selector or a list, and these are the ones that are a
 ```sass
 .deployable-component
 	@include dy-deployable($compound: ':hover')
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	// our transforms
 	&.open
@@ -700,7 +722,7 @@ You can also pass a single selector or a list, and these are the ones that are a
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 ```sass
 .deployable-component
@@ -728,7 +750,9 @@ You can override transforms with more specific versions.
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	// our transforms
 	&.open
@@ -740,7 +764,7 @@ You can override transforms with more specific versions.
 	&.open:hover
 		@include dy-define-transform(color, darken, 30)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 ```sass
 .deployable-component
@@ -760,7 +784,7 @@ You can override transforms with more specific versions.
 		color: darken(red, 30)
 ```
 
-This overriding happens no matter what you've passed to `$compound`. Manual overrides take precedence, so you can you this in conjunction with `$compound` to cover all the situations you care about with the greatest convenience.
+This overriding happens no matter what you've passed to `$compound`. Manual overrides take precedence, so you can use this in conjunction with `$compound` to cover all the situations you care about with the greatest convenience.
 
 
 Transforms follow the same rules as Versions. If the selector you're placing them in contains an `&`, you're good. Any block that could be a Version could also be a Transform, depending on what you call inside of them.
@@ -770,11 +794,13 @@ However, trying to override a version with a transform or vice-versa will throw 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	// our transforms
 	&.open
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
@@ -782,7 +808,7 @@ However, trying to override a version with a transform or vice-versa will throw 
 	&.open:hover
 		@include dy-define-transform(color, darken, 30) // -> ERROR: versions and transforms can't be intermingled
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 
 
@@ -791,36 +817,48 @@ And trying to define a transform and do any other type of state change in the sa
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	&:hover
-		@include dy-state(color, green)
+		@include dy-define-state(color, green)
 		@include dy-define-transform(color, fade-out, 0.2) // -> ERROR: versions and transforms can't be intermingled
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 
 
 ### Content Overrides
+
+
+perhaps by not specifically allowing overrides, but giving some logical functions to quickly determine what version we're in or whatever,
+
+with overrides, we can:
+- not allow them at all. rely on inheritance and just manually declaring things after the build or whatever. this means different versions can't use the state variables differently than each other
+- give them a specific override function. this would only really work inside of the build, and would rely on the basic css override system
+
 
 In different Versions of a Deployable, you can override the content declarations.
 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	.nested-block
-		background-color: dy-look-transform(color, adjust-hue, 180)) // -> the direct complement
-		color: dy-state(color)
+		@include dy-look-transform(color, background-color, adjust-hue, 180) // -> the direct complement
+		@include dy-apply(color)
+
+		&.open
+			@include dy-look-transform(color, null, darken, 30)
 
 	&.open
-		@include dy-state(color, blue)
+		@include dy-define-state(color, blue)
 
-		.nested-block
-			color: dy-look-transform(color, darken, 30)
-
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 Compiles to something like:
 
@@ -843,25 +881,27 @@ Compiles to something like:
 
 ### Inheritance and Instantiation
 
-You can create secondary Deployables that extend the behavior of existing Deployables.
+You can create secondary Deployables that extend the states, versions, and transforms of existing Deployables.
 
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 
 .inheriting-component
 	@include dy-deployable('.deployable-component')
+	@include dy-define-state(color, orange)
 
-	color: dy-state(color, orange)
-	background-color: dy-look-transform(color, adjust-hue, 180)
+	@include dy-look-transform(color, background-color, adjust-hue, 180)
 
-	@include dy-deployable-build()
+	@include dy-build()
 ```
 Compiles to something like:
 
@@ -889,20 +929,23 @@ You can also create different versions in different blocks away from the Deploya
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 
 .container
 	// this is an instantiation
 	.deployable-component
-		color: dy-state(color, yellow)
-		background-color: dy-transform(color, adjust-hue, 180)
+		@include dy-define-state(color, yellow)
 
-		@include dy-deployable-build()
+		@include dy-transform(color, background-color, adjust-hue, 180)
+
+		@include dy-build()
 ```
 ```sass
 
@@ -922,7 +965,9 @@ Defining an instantiation with transformation selectors already applied will nar
 ```sass
 .deployable-component
 	@include dy-deployable()
-	color: dy-state(color, red)
+	@include dy-define-state(color, red)
+
+	@include dy-apply(color)
 
 	&.open
 		@include dy-define-transform(color, adjust-hue, 180)
@@ -930,14 +975,14 @@ Defining an instantiation with transformation selectors already applied will nar
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 
 .container
 	// this is an instantiation
 	.deployable-component.open
-		color: dy-state(color, yellow)
+		@include dy-define-state(color, yellow)
 
-		@include dy-deployable-build()
+		@include dy-build()
 ```
 ```sass
 
@@ -957,8 +1002,8 @@ Defining an instantiation with transformation selectors already applied will nar
 The `dy-require` method can be used to optionally pull a normal Bubble property from the containing context. If you use an extend-only placeholder (a selector like `%deployable`) then you don't have to provide a default value. Otherwise you do.
 
 ```sass
+// none of this will end up actually being output as css until you use it somewhere
 %deployable
-	// none of this will end up actually being output as css
 	@include dy-deployable()
 
 	// will pull 'color' from parent and save to 'color'
@@ -976,7 +1021,7 @@ The `dy-require` method can be used to optionally pull a normal Bubble property 
 	&:hover
 		@include dy-define-transform(color, fade-out, 0.2)
 
-	@include dy-deployable-build()
+	@include dy-build()
 
 
 .container
@@ -987,7 +1032,7 @@ The `dy-require` method can be used to optionally pull a normal Bubble property 
 
 		// ... optionally perform overrides or whatever ...
 
-		@include dy-deployable-build()
+		@include dy-build()
 
 
 .different-container
