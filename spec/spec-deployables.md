@@ -472,14 +472,6 @@ And trying to define a transform and do any other type of state change in the sa
 
 ### Content Overrides
 
-
-perhaps by not specifically allowing overrides, but giving some logical functions to quickly determine what version we're in or whatever,
-
-with overrides, we can:
-- not allow them at all. rely on inheritance and just manually declaring things after the build or whatever. this means different versions can't use the state variables differently than each other
-- give them a specific override function. this would only really work inside of the build, and would rely on the basic css override system
-
-
 In different Versions of a Deployable, you can override the content declarations.
 
 ```sass
