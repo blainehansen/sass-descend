@@ -86,5 +86,37 @@ var customFunctions = {
 
 		return new sass.types.String(value[1])
 	},
+	// '-dy-parse-current-deployable($manifest, $selector)': function (manifest, selector) {
+
+	// },
+	// '-dy-parse-current-deployable($manifest, $selector)': function (manifest, selector) {
+	// 	selector = selector.getValue()
+	// 	console.log(selector)
+	// 	var item
+	// 	var matches = []
+	// 	for (var i = 0; i < manifest.getLength(); i++) {
+	// 		item = manifest.getValue(i).getValue()
+
+	// 		console.log(item)
+	// 		var count = (selector.match(new RegExp(item, 'g')) || []).length;
+	// 		console.log(count);
+	// 	}
+
+	// 	return new sass.types.String('dy-default')
+	// },
+	'-dy-parse-current-version($deployable, $selector)': function (deployable, selector) {
+		deployable = deployable.getValue()
+		selector = selector.getValue()
+
+		var replaceAmp = '&'
+		selector = selector.replace(new RegExp(deployable, 'g'), replaceAmp)
+
+		if (selector == replaceAmp) {
+			return new sass.types.String('dy-default')
+		}
+		else {
+			return new sass.types.String(selector)
+		}
+	}
 };
 customFunctions

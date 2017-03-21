@@ -1,0 +1,231 @@
+$--current-deployable: null;
+
+@function -dy-current-deployable() {
+	$deployable: $--current-deployable;
+	@if not $deployable or str-length($deployable) == 0 {
+		@error "invalid location to set deployable state, this isn't a deployable component";
+	}
+
+	@return $deployable;
+}
+
+@function -dy-current-version($current-deployable) {
+	@return -dy-parse-current-version($current-deployable, -ds-amp());
+}
+
+
+
+// $--deployable-manifest: (various, selector, strings);
+$--deployable-manifest: ();
+
+// $--deployable-references: (
+// 	selector-string: (
+// 		-dy-default: (
+// 			// this map key is the css name
+// 			// doing it this way makes overriding easy
+// 			color: (type: apply, property: color),
+// 			color: (type: transform, property: color, function: whatever, args: (...)),
+// 			color: (type: look-transform, property: color, function: whatever, args: (...)),
+// 			color: (type: operate, property: color, function: whatever, args: (...)),
+// 			color: (type: look-operate, function: whatever, args: (...)),
+// 		),
+// 		'.open': (
+// 			color: (type: transform, property: color, function: whatever, args: (...)),
+// 		)
+// 	)
+// );
+$--deployable-references: ();
+
+
+// $--deployable-versions: (
+// 	selector-string: (
+// 		-dy-default: (
+// 			color: red,
+// 			etc: thing
+// 		)
+// 		'.open': (
+// 			color: blue,
+// 			etc: else
+// 		)
+// 	)
+// );
+$--deployable-versions: ();
+
+
+// $--deployable-transforms: (
+// 	selector-string: (
+// 		':hover': (
+// 			color: (func: fade-out, args: (0.2))
+// 		)
+// 	)
+// );
+$--deployable-transforms: ();
+
+@mixin -dy-place-in-deployable-map($target, $deployable, $version, $property, $value) {
+	$targeted-map: null;
+	$allow-overwrite: null;
+	@if $target == 'versions' {
+		$targeted-map: $--deployable-versions;
+		$allow-overwrite: false;
+	}
+	@else if $target == 'transforms' {
+		$targeted-map: $--deployable-transforms;
+		$allow-overwrite: false;
+	}
+	@else if $target == 'references' {
+		$targeted-map: $--deployable-references;
+		$allow-overwrite: true;
+	}
+	@else {
+		@error "invalid target";
+	}
+
+	$all-versions: map-get($targeted-map, $deployable);
+	@if not $all-versions {
+		$all-versions: ();
+	}
+
+	$all-states: map-get($all-versions, $version);
+	@if not $all-states {
+		$all-states: ();
+	}
+
+	@if $allow-overwrite and map-has-key($all-states, $property) {
+		@if $target == 'versions' {
+			@error "can't overwrite an existing state variable in the same version: property #{$property} in #{$current-version}";
+		}
+		@if $target == 'transforms' {
+			@error "can't overwrite an existing transform: in #{$current-version}";
+		}
+	}
+
+	// set this pair to the versions object.
+	$new-states: map-merge($all-states, ($property: $value));
+	$new-versions: map-merge($all-versions, ($version: $new-states));
+
+	@if $target == 'versions' {
+		$--deployable-versions: map-merge($targeted-map, ($deployable: $new-versions)) !global;
+	}
+	@else if $target == 'transforms' {
+		$--deployable-transforms: map-merge($targeted-map, ($deployable: $new-versions)) !global;
+	}
+	@else if $target == 'references' {
+		$--deployable-references: map-merge($targeted-map, ($deployable: $new-versions)) !global;
+	}
+}
+
+@function -dy-get-states-in-deployable-map($targeted-map, $deployable, $version) {
+	$all-versions: map-get($targeted-map, $deployable);
+	@if not $all-versions {
+		$all-versions: ();
+	}
+
+	$all-states: map-get($all-versions, $version);
+	@if not $all-states {
+		$all-states: ();
+	}
+
+	@return $all-states;
+}
+
+@function -dy-get-versions-in-deployable-map($targeted-map, $deployable) {
+	$all-versions: map-get($targeted-map, $deployable);
+	@if not $all-versions {
+		$all-versions: ();
+	}
+
+	@return $all-versions;
+}
+
+
+@function -dy-perform-reference-function($state-map, $type, $property, $function: null, $args: null) {
+	@if $type == 'apply' {
+		$state-value: map-get($state-map, $property);
+		@return (value: $state-value, state-map: $state-map);
+	}
+
+	@if $type == 'transform' or $type == 'look-transform' {
+		// fetch the value directly
+		$state-value: map-get($state-map, $property);
+		// call with it as the first argument
+		$state-value: call($function, $state-value, $args...);
+
+		// save it to the state if necessary
+		@if $type == 'transform' {
+			$state-map: map-merge($state-map, ($property: $state-value));
+		}
+
+		@return (value: $state-value, state-map: $state-map);
+	}
+
+	@if $type == 'operate' or $type == 'look-operate' {
+		// get the filled out version of the arguments
+		$kwargs: -ds-replace-operate-args($args, $state-map);
+
+		// get the result of the operation
+		$state-value: call($function, $kwargs...);
+
+		// save it to the state if necessary
+		@if $type == 'operate' {
+			$state-map: map-merge($state-map, ($property: $state-value));
+		}
+
+		@return (value: $state-value, state-map: $state-map);
+	}
+
+	@else {
+		@error "invalid reference type";
+	}
+}
+
+
+@function -dy-default-state-exists($deployable, $state) {
+	// get all keys for dy-default from versions
+	$all-states: -dy-get-states-in-deployable-map($--deployable-versions, $deployable, dy-default);
+
+	@if map-has-key($all-states, $state) {
+		@return true;
+	}
+	@return false;
+}
+
+@function -dy-transforms-exist-on-block($deployable, $version) {
+	$all-transforms: -dy-get-versions-in-deployable-map($--deployable-transforms, $deployable);
+
+	@if map-has-key($all-transforms, $version) {
+		@return true;
+	}
+	@return false;
+}
+
+
+@mixin -dy-add-reference($type, $property, $css-name, $function: null, $args: null) {
+	$reference-map: null;
+	@if $type == 'apply' {
+		$reference-map: (type: apply, property: $property);
+	}
+	@else if $type == 'transform' {
+		$reference-map: (type: transform, property: $property, function: $function, args: $args);
+	}
+	@else if $type == 'look-transform' {
+		$reference-map: (type: look-transform, property: $property, function: $function, args: $args);
+	}
+	@else if $type == 'operate' {
+		$reference-map: (type: operate, property: $property, function: $function, args: $args);
+	}
+	@else if $type == 'look-operate' {
+		$reference-map: (type: look-operate, property: $property, function: $function, args: $args);
+	}
+	@else {
+		@error "invalid reference type #{$type}";
+	}
+	
+	$deployable: -dy-current-deployable();
+	$version: -dy-current-version($deployable);
+
+	@if $property != null and not -dy-default-state-exists($deployable, $property) {
+		@error "You can't refer to a state if it doesn't exist in the default. #{$deployable} #{$version} #{$property}";
+	}
+
+	@include -dy-place-in-deployable-map('references', $deployable, $version, $css-name, $reference-map);
+}

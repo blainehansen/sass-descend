@@ -1,135 +1,157 @@
 @import 'descend-core';
-
-// for each version
-// 	for each combination of allowed transforms (based on $compound argument)
-// 		rerun content with version state and compounded transformation for this combination
-
-// $--deployable-manifest: (
-// 	selector-string: (
-// 		version-states: (),
-// 		default-references: (),
-// 		version-references: (),
-// 		transforms: ()
-// 	)
-// );
-
-// $--deployable-version-states: (
-// 	selector-string: (
-// 		-dy-default: (
-// 			color: red,
-// 			etc: thing
-// 		)
-// 		'.open': (
-// 			color: blue,
-// 			etc: else
-// 		)
-// 	)
-// );
-
-// $--deployable-references: (
-// 	selector-string: (
-// 		-dy-default: (
-// 			color: red,
-// 			etc: thing
-// 		)
-// 		'.open': (
-// 			color: blue,
-// 			etc: else
-// 		)
-// 	)
-// );
+@import 'descend-utilities';
 
 
 // this whole library works like this:
 // we have a global manifest of deployables
 // when you run depoyable on a simple root selector with no arguments, it adds it to the manifest
-// deployables have a list of state variables, references, versions, and transforms
+// deployables have a list of state variables in versions, references, and transforms
 // when someone makes a state assignment on the default version, it adds it to the list and logs that reference (if any) on the default version
 // when someone makes a reference to a state variable, it logs that reference in the version, potentially default
 // when someone makes a state assignment on a different version, 
 // when someone runs build on the original deployable definition, it goes through all versions other than default, and 
 
 
-// so the solution is to reintroduce dy-apply
-// remove the function versions of everything that just return, and make all of them not return
-// then make both look versions require a css attribute name
+$dy-compound-default: (':hover');
 
+@mixin dy-deployable($extending: null, $compound: null) {
 
-$--test-content-save: ();
-@mixin dy-content() {
-	// $thing: @content;
-	// @debug $thing;
-	$dummy-list: ();
-	$dummy-list: append($dummy-list, @content);
-	// map-merge($--test-content-save, ())
+	// check if $compound is null
+	@if $compound == null {
+		$compound: $dy-compound-default;
+	}
+
+	@if $extending == null {
+		// run checks on amp
+		// can only be at root
+
+		// @if not -ds-check-at-root() {
+		// 	@error "Deployables can only be declared at the document root.";
+		// }
+		// // and only a single simple selector
+		// @if not -ds-check-simple-selector() {
+		// 	@error "Deployables can only be declared on a single simple selector, like a .class or html element.";
+		// }
+
+		// if valid
+		// push to global object
+		$--current-deployable: -ds-amp() !global;
+		// save this selector to the list of deployables
+		$--deployable-manifest: append($--deployable-manifest, -ds-amp()) !global;
+
+		// set up dy-default in versions and references
+		// $--deployable-references: map-merge($--deployable-references, (-ds-amp(): (dy-default: ()) )) !global;
+		// $--deployable-versions: map-merge($--deployable-versions, (-ds-amp(): (dy-default: ()) )) !global;
+
+	}
+	@else {
+		// we're extending something
+		// later, check if already defined, maybe extending?
+		// check if extend placeholder
+	}
 }
 
 
+@mixin dy-build() {
+	// go through all versions
+	$deployable: -dy-current-deployable();
+	$all-versions: -dy-get-versions-in-deployable-map($--deployable-versions, $deployable);
 
-@mixin dy-deployable() {
-	// run checks on amp
-	// can only be at root
-	@if not -ds-check-at-root() {
-		@error "Deployables can only be declared at the document root.";
+	$default-references: ();
+	@each $version, $state-map in $all-versions {
+		@debug $version;
+		@debug $state-map;
+		
+		// get references made by this version
+		$current-references: -dy-get-states-in-deployable-map($--deployable-references, $deployable, $version);
+		// capture the default references
+		@if $version == dy-default {
+			$default-references: $current-references;
+		}
+
+		// use default references...
+		@each $css-name, $reference-map in $default-references {
+			@debug $css-name;
+
+			// unless the current version makes a reference to the same thing
+			@if map-has-key($current-references, $css-name) {
+				$reference-map: map-get($current-references, $css-name);
+			}
+			@debug $reference-map;
+
+			// output everything at the correct version selector
+			$result: -dy-perform-reference-function($state-map, $reference-map...);
+			$state-map: map-get($result, state-map);
+			$value: map-get($result, value);
+			@if $version == dy-default {
+				#{$css-name}: #{$value};
+			}
+			@else {
+				#{$version} {
+					#{$css-name}: #{$value};
+				}
+			}
+		}
+
+		@debug '';
 	}
-	// and only a single simple selector
-	@if not -ds-check-simple-selector() {
-		@error "Deployables can only be declared on a single simple selector, like a .class or html element.";
-	}
 
-	// if valid, save this selector to the list of deployables
-
-
-
-
-
-
-
-
-	// later, check if already defined, maybe extending?
-	// check if extend placeholder
+	$--current-deployable: null !global;
 }
 
-// we'll have to push the current version variables to a global context stack
-// @mixin dy-content() {
 
-// }
+@mixin dy-define-state($property, $value) {
+	// this means we have to do some checks to see what state we're in
+	// and if we're even in a valid deployable
+	$current-deployable: -dy-current-deployable();
+	$current-version: -dy-current-version($current-deployable);
 
+	// freak out if any transforms are defined in this block
+	@if $current-version != dy-default and -dy-transforms-exist-on-block($current-deployable, $current-version) {
+		@error "versions and transforms can't be intermingled";
+	}
 
-// /// saves a property
-// @mixin dy-state($property, $value) {
-// 	$garbage: -ds-property-save($property, $value);
-// }
+	@if $current-version != dy-default and not -dy-default-state-exists($current-deployable, $property) {
+		@error "You can't define an alternative version of a state if it doesn't exist in the default. #{$current-deployable} #{$current-version} #{$property} #{$value}";
+	}
 
-// /// saves a property if passed one, else doesn't
-// /// always returns result
-// @function dy-state($property, $value: null) {
-// 	$give: null;
-// 	@if $value == null {
-// 		// only retrieve
-// 		$give: -ds-property-recursive(-ds-amp(), $property);
-// 	}
-// 	@else {
-// 		$garbage: -ds-property-save($property, $value);
-// 		// perhaps some sanitation?
-// 		$give: $value;
-// 	}
-
-// 	@return $give;
-// }
+	@include -dy-place-in-deployable-map('versions', $current-deployable, $current-version, $property, $value)
+	@debug $--deployable-versions;
+}
 
 
-// @mixin dy-deployable-build() {
+@mixin dy-define-transform($property, $function, $args...) {
+	// put this transform into the transforms map
 
-// }
-
-// @mixin dy-define-transform() {
-
-// }
-
+	// similarly check like in define state to make sure everything's valid.
+	// freak out if any define-states are called in this block
+}
 
 
-// dy-transform
-// dy-look-transform
-// dy-operate
-// dy-look-operate
+@mixin dy-apply($property, $css-name: null) {
+	@if $css-name == null {
+		$css-name: $property;
+	}
+
+	@include -dy-add-reference('apply', $property, $css-name);
+}
+
+@mixin dy-transform($property, $css-name, $function, $args...) {
+	$args: -ds-validate-args('transform', $args...);
+	@include -dy-add-reference('transform', $property, $css-name, $function, $args);
+}
+
+@mixin dy-look-transform($property, $css-name, $function, $args...) {
+	$args: -ds-validate-args('transform', $args...);
+	@include -dy-add-reference('look-transform', $property, $css-name, $function, $args);
+}
+
+@mixin dy-operate($property, $css-name, $function, $args...) {
+	$args: -ds-validate-args('operate', $args...);
+	@include -dy-add-reference('operate', $property, $css-name, $function, $args);
+}
+
+@mixin dy-look-operate($css-name, $function, $args...) {
+	$args: -ds-validate-args('operate', $args...);
+	@include -dy-add-reference('look-operate', null, $css-name, $function, $args);	
+}

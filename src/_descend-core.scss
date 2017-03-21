@@ -1,3 +1,56 @@
+@function -ds-depth-get($map, $accessors...) {
+	$current-value: null;
+	@each $accessor in $accessors {
+		@if $current-value {
+			$current-value: map-get($current-value, $accessor);
+		}
+		@else {
+			$current-value: map-get($map, $accessor);
+		}
+	}
+	@return $current-value;
+}
+
+
+@function -ds-list-pop($list) {
+	@if length($list) == 1 {
+		@return ();
+	}
+
+	$give-list: ();
+	$end-length: length($list) - 1;
+	@for $i from 1 through $end-length {
+		$give-list: append($give-list, nth($list, $i));
+	}
+
+	@return $give-list;
+}
+
+@function -ds-depth-merge($map, $merging-map, $accessors...) {
+	$merged-map: ();
+	@while length($accessors) > 0 {
+		@debug $accessors;
+		$target-map: -ds-depth-get($map, $accessors...);
+		@debug $target-map;
+		$merged-map: map-merge($target-map, $merging-map);
+		@debug $merged-map;
+		$merged-map: (nth($accessors, length($accessors)): $merged-map);
+		@debug $merged-map;
+		@debug '';
+
+		$merging-map: $merged-map;
+
+		$accessors: -ds-list-pop($accessors);
+	}
+
+	@return $merged-map;
+}
+
+$hell-map: (key: (next: (other: (thing: red))));
+@debug -ds-depth-merge($hell-map, (stuff: green), key, next, other);
+
+
+
 $--ds-properties-map: ();
 
 @function -ds-amp() {
@@ -109,27 +162,47 @@ $--ds-properties-map: ();
 	}	
 }
 
-/// acts on several properties and outputs their value to css-name
-@function -ds-operate($func, $args...) {
+
+@function -ds-validate-args($mode, $args...) {
+	$list-length: length($args);
+
 	$kwargs: keywords($args);
+	$keywords-length: length($kwargs);
 
-	// we need to guarantee only keyword arguments
-	// if kwargs has a different size than the iterated size of args, freak out
-	$args-size: 0;
-	@each $key, $value in $args {
-		$args-size: $args-size + 1;
+	$invalid-args: false;
+	@if $list-length > 0 and $keywords-length > 0 {
+		$invalid-args: true;
 	}
 
-	@if length($kwargs) < $args-size {
-		@error "You can only pass keyword arguments to this function.";
+	@if $invalid-args {
+		@if $mode == 'transform' {
+			@error "For transform functions, you must either pass all keyword arguments or none at all. #{$args} #{$kwargs}";
+		}
+		@if $mode == 'operate' {
+			@error "For operate functions, you can only pass keyword arguments. #{$args} #{$kwargs}";
+		}
+		@error "Invalid args for invalid mode. #{$args} #{$kwargs}";
 	}
 
+	@if $keywords-length > 0 {
+		@return $kwargs;
+	}
+	@return $args;
+}
+
+@function -ds-replace-operate-args($kwargs, $state-map: null) {
 	@each $key, $value in $kwargs {
 
 		$arg-property-name: -ds-get-property-name-arg($value);
 
 		@if $arg-property-name {
-			$result: -ds-property-recursive(-ds-amp(), $arg-property-name);
+			$result: null;
+			@if not $state-map {
+				$result: -ds-property-recursive(-ds-amp(), $arg-property-name);
+			}
+			@else {
+				$result: map-get($state-map, $arg-property-name);
+			}
 
 			@if $result {
 				$kwargs: map-remove($kwargs, $key);
@@ -141,6 +214,47 @@ $--ds-properties-map: ();
 			}
 		}
 	}
+
+	@return $kwargs;
+}
+
+
+/// acts on several properties and outputs their value to css-name
+@function -ds-operate($func, $args...) {
+	// $kwargs: keywords($args);
+
+	// // we need to guarantee only keyword arguments
+	// // if kwargs has a different size than the iterated size of args, freak out
+	// $args-size: 0;
+	// @each $key, $value in $args {
+	// 	$args-size: $args-size + 1;
+	// }
+
+	// @if length($kwargs) < $args-size {
+	// 	@error "You can only pass keyword arguments to this function.";
+	// }
+
+	$kwargs: -ds-validate-args('operate', $args...);
+
+	// @each $key, $value in $kwargs {
+
+	// 	$arg-property-name: -ds-get-property-name-arg($value);
+
+	// 	@if $arg-property-name {
+	// 		$result: -ds-property-recursive(-ds-amp(), $arg-property-name);
+
+	// 		@if $result {
+	// 			$kwargs: map-remove($kwargs, $key);
+
+	// 			$kwargs: map-merge($kwargs, ($key: $result));
+	// 		}
+	// 		@else {
+	// 			@error "Property #{$value} cannot be found for operation #{$func}";
+	// 		}
+	// 	}
+	// }
+
+	$kwargs: -ds-replace-operate-args($kwargs);
 
 	@return call($func, $kwargs...);
 }
