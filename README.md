@@ -6,16 +6,16 @@ Go ahead and contact me if you'd like to help with any of the following tasks, o
 
 Roadmap:
 
-- [] Implement Complex Selector mixins.
-- [] Unit tests (probably using [true](https://www.npmjs.com/package/sass-true)).
-- [] Make useable as node package on npm.
-- [] Create Webpack plugin.
-- [] Create Gulp plugin.
-- [] Create Grunt plugin.
-- [] Make useable as Meteor package.
-	- [] Either finalize [fourseven:scss pull request](https://github.com/fourseven/meteor-scss/pull/238) to allow custom javascript functions, or create and maintain a fork of that project allowing it.
-- [] Make useable by ruby sass.
-	- [] Write ruby versions of custom functions.
+- [ ] Implement Complex Selector mixins.
+- [ ] Unit tests (probably using [true](https://www.npmjs.com/package/sass-true)).
+- [ ] Make useable as node package on npm.
+- [ ] Create Webpack plugin.
+- [ ] Create Gulp plugin.
+- [ ] Create Grunt plugin.
+- [ ] Make useable as Meteor package.
+	- [ ] Either finalize [fourseven:scss pull request](https://github.com/fourseven/meteor-scss/pull/238) to allow custom javascript functions, or create and maintain a fork of that project allowing it.
+- [ ] Make useable by ruby sass.
+	- [ ] Write ruby versions of custom functions.
 
 
 # Descend, property lookup for sass
